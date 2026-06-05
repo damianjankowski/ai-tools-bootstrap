@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+_BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+source "${_BOOTSTRAP_DIR}/lib/bootstrap-lib.sh"
+
+# ── components ────────────────────────────────────────────────────────────────
+COMPONENTS=(
+  "header|── Tools ──────────────────────────────────────────"
+  "tool|Claude Code CLI|_claude_installed|_install_claude_code"
+  "tool|beads|_beads_installed|_install_beads"
+  "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
+  "tool|ccstatusline|_ccstatusline_configured|_install_ccstatusline"
+  "header|── Plugins / Skills ───────────────────────────────"
+  "plugin|andrej-karpathy-skills|andrej-karpathy-skills@karpathy-skills|forrestchang/andrej-karpathy-skills|karpathy-skills"
+  "plugin|dynatrace|dynatrace@dynatrace-for-ai|dynatrace/dynatrace-for-ai|dynatrace-for-ai"
+  "plugin|superpowers|superpowers@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|context7|context7@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|skill-creator|skill-creator@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|playwright|playwright@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|claude-md-management|claude-md-management@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|plugin-dev|plugin-dev@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
+  "plugin|terraform-code-generation|terraform-code-generation@hashicorp|hashicorp/agent-skills|hashicorp"
+  "plugin|terraform-module-generation|terraform-module-generation@hashicorp|hashicorp/agent-skills|hashicorp"
+  "plugin|terraform-provider-development|terraform-provider-development@hashicorp|hashicorp/agent-skills|hashicorp"
+  "plugin|terraform-skill|terraform-skill@antonbabenko|antonbabenko/agent-plugins|antonbabenko"
+)
+
+# ── idempotency checks ────────────────────────────────────────────────────────
+_claude_installed()        { _cmd_exists claude; }
+_ccstatusline_configured() { [[ -f "$HOME/.config/ccstatusline/settings.json" ]]; }
+
+# ── install functions ─────────────────────────────────────────────────────────
+_install_claude_code() {
+  if _claude_installed; then ok "Claude Code CLI already present — skipping"; return 0; fi
+  log "Installing Claude Code CLI..."
+  _npm_install @anthropic-ai/claude-code
+  ok "Claude Code CLI installed"
+}
+
+_install_ccstatusline() {
+  if _ccstatusline_configured; then ok "ccstatusline already configured — skipping"; return 0; fi
+  log "Configuring ccstatusline..."
+  if _cmd_exists npx; then
+    npx -y ccstatusline@latest
+  elif _cmd_exists bunx; then
+    bunx -y ccstatusline@latest
+  else
+    err "npx/bunx not found — install Node.js or Bun first: https://nodejs.org"; return 1
+  fi
+  ok "ccstatusline configured"
+}
+
+# ── run ───────────────────────────────────────────────────────────────────────
+case "${1:-}" in
+  --update) bootstrap_update_plugins ;;
+  --list-versions) bootstrap_list_plugin_versions ;;
+  *) bootstrap_run ;;
+esac

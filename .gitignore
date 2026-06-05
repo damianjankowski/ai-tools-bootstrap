@@ -1,0 +1,41 @@
+.DS_Store
+*.bak
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+
+# Beads
+.beads/
+
+# Claude Code
+.claude/
+.claude-plugin/

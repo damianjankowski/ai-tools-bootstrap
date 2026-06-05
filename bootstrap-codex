@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+_BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+source "${_BOOTSTRAP_DIR}/lib/bootstrap-lib.sh"
+
+# ── components ────────────────────────────────────────────────────────────────
+COMPONENTS=(
+  "header|── Tools ──────────────────────────────────────────"
+  "tool|Codex CLI|_codex_installed|_install_codex"
+  "tool|beads|_beads_installed|_install_beads"
+  "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
+  "header|── Agent Skills (universal) ───────────────────────"
+  "skill|dynatrace skills|dynatrace/dynatrace-for-ai|dt-app-dashboards"
+  "skill|hashicorp / terraform skills|hashicorp/agent-skills|terraform-style-guide"
+  "skill|code-intelligence (antonbabenko)|antonbabenko/agent-plugins|code-intelligence"
+)
+
+# ── idempotency checks ────────────────────────────────────────────────────────
+_codex_installed() { _cmd_exists codex; }
+
+# ── install functions ─────────────────────────────────────────────────────────
+_install_codex() {
+  if _codex_installed; then ok "Codex CLI already present — skipping"; return 0; fi
+  log "Installing Codex CLI..."
+  _npm_install @openai/codex
+  ok "Codex CLI installed"
+}
+
+# ── run ───────────────────────────────────────────────────────────────────────
+bootstrap_run

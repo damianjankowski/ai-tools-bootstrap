@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+_BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+source "${_BOOTSTRAP_DIR}/lib/bootstrap-lib.sh"
+
+# ── components ────────────────────────────────────────────────────────────────
+# Skills install to ~/.agents/skills/ — OpenCode auto-discovers this path.
+# OpenCode plugins (JS/TS hooks) are a separate system; not covered here.
+
+COMPONENTS=(
+  "header|── Tools ──────────────────────────────────────────"
+  "tool|OpenCode|_opencode_installed|_install_opencode"
+  "tool|beads|_beads_installed|_install_beads"
+  "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
+  "header|── Agent Skills (universal) ───────────────────────"
+  "skill|dynatrace skills|dynatrace/dynatrace-for-ai|dt-app-dashboards"
+  "skill|hashicorp / terraform skills|hashicorp/agent-skills|terraform-style-guide"
+  "skill|code-intelligence (antonbabenko)|antonbabenko/agent-plugins|code-intelligence"
+)
+
+# ── idempotency checks ────────────────────────────────────────────────────────
+_opencode_installed() { _cmd_exists opencode; }
+
+# ── install functions ─────────────────────────────────────────────────────────
+_install_opencode() {
+  if _opencode_installed; then ok "OpenCode already present — skipping"; return 0; fi
+  log "Installing OpenCode..."
+  if _cmd_exists brew; then
+    brew install anomalyco/tap/opencode
+  else
+    _curl_install https://opencode.ai/install
+  fi
+  ok "OpenCode installed"
+}
+
+# ── run ───────────────────────────────────────────────────────────────────────
+bootstrap_run

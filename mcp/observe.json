@@ -1,0 +1,158 @@
+{
+  "mcpServers": {
+    "mcp-rancher": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/rancher.env",
+        "--",
+        "npx",
+        "-y",
+        "@gorizond/mcp-rancher-multi@latest"
+      ],
+      "env": {}
+    },
+    "mcp-pagerduty": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/pagerduty.env",
+        "--",
+        "uvx",
+        "pagerduty-mcp"
+      ],
+      "env": {}
+    },
+    "mcp-zabbix": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/zabbix.env",
+        "--",
+        "uvx",
+        "--from",
+        "git+https://github.com/initMAX/zabbix-mcp-server",
+        "zabbix-mcp-server",
+        "--config",
+        "${DOTENV_DIR}/observe/zabbix-mcp-config.toml"
+      ],
+      "env": {}
+    },
+    "mcp-dynatrace-nonprod": {
+      "type": "stdio",
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/dt-nonprod.env",
+        "--",
+        "npx",
+        "-y",
+        "@dynatrace-oss/dynatrace-mcp-server@latest"
+      ],
+      "env": {}
+    },
+    "mcp-atlassian": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/atlassian.env",
+        "--",
+        "uvx",
+        "mcp-atlassian",
+        "--read-only"
+      ],
+      "env": {}
+    },
+    "mcp-dynatrace-prod": {
+      "type": "stdio",
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/dt-prod.env",
+        "--",
+        "npx",
+        "-y",
+        "@dynatrace-oss/dynatrace-mcp-server@latest"
+      ],
+      "env": {}
+    },
+    "mcp-grafana": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/grafana.env",
+        "--",
+        "uvx",
+        "mcp-grafana"
+      ],
+      "env": {}
+    },
+    "mcp-argocd-prod": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/argocd-prod.env",
+        "--",
+        "npx",
+        "-y",
+        "argocd-mcp@latest",
+        "stdio"
+      ],
+      "env": {}
+    },
+    "mcp-argocd-nonprod": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/argocd-nonprod.env",
+        "--",
+        "npx",
+        "-y",
+        "argocd-mcp@latest",
+        "stdio"
+      ],
+      "env": {}
+    },
+    "mcp-argocd-infra": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/argocd-infra.env",
+        "--",
+        "npx",
+        "-y",
+        "argocd-mcp@latest",
+        "stdio"
+      ],
+      "env": {}
+    },
+    "mcp-kubernetes": {
+      "command": "npx",
+      "args": ["-y", "kubernetes-mcp-server@latest", "--read-only"],
+      "env": {}
+    },
+    "mcp-gitlab": {
+      "command": "op",
+      "args": [
+        "run",
+        "--env-file",
+        "${DOTENV_DIR}/observe/gitlab.env",
+        "--",
+        "glab",
+        "mcp",
+        "serve"
+      ],
+      "env": {}
+    }
+  }
+}
