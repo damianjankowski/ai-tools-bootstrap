@@ -300,6 +300,10 @@ _pick_components() {
       $box_h 65 $list_h \
       "${dialog_args[@]}")" || return 1
     while IFS= read -r desc; do
+      [[ -z "$desc" ]] && continue
+      if [[ "$desc" =~ ^[0-9]+$ ]] && [[ -n "${item_labels[$desc]:-}" ]]; then
+        result+="$desc "; continue
+      fi
       local i
       for i in "${!item_labels[@]}"; do
         if [[ "${item_labels[$i]}" == "$desc" ]]; then
@@ -307,6 +311,10 @@ _pick_components() {
         fi
       done
     done <<< "$raw"
+    if [[ -n "${raw//[[:space:]]/}" ]] && [[ -z "${result// /}" ]]; then
+      err "Could not map dialog output to components: ${raw//$'\n'/ }"
+      return 1
+    fi
     printf '%s' "${result% }"
   else
     _pick_components_text "$n" "${item_labels[@]}"
