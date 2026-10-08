@@ -1,12 +1,12 @@
-# dj-sre-kit bootstrap
+# ai-bootstrap
 
-Interactive bootstrap scripts for setting up Claude Code and related tooling on a new machine.
-
-## Quick start
+Interactive installer for AI coding tools, plugins, and skills.
 
 ```bash
-make bootstrap        # Claude Code tools + plugins
-make bootstrap-codex  # Codex tools + plugins
+make bootstrap           # Claude Code
+make bootstrap-codex     # Codex
+make bootstrap-opencode  # OpenCode
+make help                # all targets
 ```
 
-Requires `dialog` for the TUI checklist (`brew install dialog`). Falls back to a text prompt if absent.
+Optional: `brew install dialog` for a checklist UI. Without it, you get a text prompt.
