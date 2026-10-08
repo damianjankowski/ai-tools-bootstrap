@@ -17,6 +17,7 @@ COMPONENTS=(
   "skill|dynatrace skills|dynatrace/dynatrace-for-ai|dt-app-dashboards"
   "skill|hashicorp / terraform skills|hashicorp/agent-skills|terraform-style-guide"
   "skill|code-intelligence (antonbabenko)|antonbabenko/agent-plugins|code-intelligence"
+  "skill|terraform-skill (antonbabenko)|antonbabenko/terraform-skill|terraform-skill"
 )
 
 # ── idempotency checks ────────────────────────────────────────────────────────
