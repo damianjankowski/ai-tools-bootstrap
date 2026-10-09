@@ -139,6 +139,11 @@ google-cloud-waf-reliability google-cloud-waf-security google-cloud-waf-cost-opt
 google-cloud-waf-operational-excellence google-cloud-waf-performance-optimization \
 google-cloud-waf-sustainability"
 
+# mattpocock/skills, picked one by one: without a list skills.sh also installs
+# the in-progress/ and misc/ buckets. grill-me and grill-with-docs only delegate
+# to grilling (and domain-modeling), so add those dependencies with them.
+MATTPOCOCK_SKILLS="handoff"
+
 # ── shared tool checks + installs (common across all bootstrap-* scripts) ─────
 _beads_installed() { _cmd_exists bd; }
 _cbm_installed()   { _cmd_exists codebase-memory-mcp; }
