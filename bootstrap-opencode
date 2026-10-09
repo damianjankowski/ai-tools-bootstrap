@@ -18,6 +18,10 @@ COMPONENTS=(
   "skill|hashicorp / terraform skills|hashicorp/agent-skills|terraform-style-guide"
   "skill|code-intelligence (antonbabenko)|antonbabenko/agent-plugins|code-intelligence"
   "skill|terraform-skill (antonbabenko)|antonbabenko/terraform-skill|terraform-skill"
+  "skill|grafana skills|grafana/skills|promql"
+  "skill|APEX skills (AWS EKS/ECS)|aws-samples/sample-apex-skills|eks-recon|${APEX_SKILLS}"
+  "skill|google skills (GKE/GCP ops)|google/skills|gke-basics|${GOOGLE_SKILLS}"
+  "skill|kubernetes-skill (KubeShark)|LukasNiessen/kubernetes-skill|kubernetes-skill"
 )
 
 # ── idempotency checks ────────────────────────────────────────────────────────

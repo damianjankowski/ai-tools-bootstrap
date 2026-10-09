@@ -10,8 +10,9 @@
 #   "header|── Section Label ──────────────────────"
 #   "tool|Display Label|check_fn|install_fn"
 #   "plugin|Display Label|plugin@marketplace|marketplace-source|marketplace-id"
-#   "skill|Display Label|org/repo|check-skill-name"
+#   "skill|Display Label|org/repo|check-skill-name[|skill-a skill-b ...]"
 #         ↑ Agent Skills format (npx skills add -g), works on Codex/Cursor/Copilot/etc.
+#           Optional last field: install only these skills (space-separated names).
 #
 # After defining COMPONENTS (and any custom install_* functions), call:
 #   bootstrap_run
@@ -59,11 +60,22 @@ _marketplace_exists() {
   [[ -f "$f" ]] && jq -e --arg id "$id" 'has($id)' "$f" >/dev/null 2>&1
 }
 
-# check-skill-name is the name of one skill from the package (used as installed proxy)
+# check-skill-name is the name of one skill from the package (used as installed proxy).
+# `npx skills ls` is slow (npm resolves the package on every run), so list once and
+# reuse it; _install_skill clears the cache. --yes and </dev/null: when a newer
+# `skills` release is not in the npx cache, npx asks "Ok to proceed?" — with stderr
+# hidden that prompt is invisible and the script hangs before the picker opens.
+_SKILLS_LS=""
+_SKILLS_LS_LOADED=false
 _skill_installed() {
   local skill_name="$1"
   _cmd_exists npx || return 1
-  npx skills ls -g --json 2>/dev/null | grep -q "\"name\":\"${skill_name}\""
+  if [[ "$_SKILLS_LS_LOADED" != "true" ]]; then
+    _SKILLS_LS="$(npx --yes skills ls -g --json </dev/null 2>/dev/null || true)"
+    _SKILLS_LS_LOADED=true
+  fi
+  # skills >= 1.7 pretty-prints the JSON ("name": "x"), older releases did not
+  grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${skill_name}\"" <<< "$_SKILLS_LS"
 }
 
 # ── shared install helpers ────────────────────────────────────────────────────
@@ -88,10 +100,44 @@ _curl_install() {
 }
 
 _install_skill() {
-  local repo="$1"
+  local repo="$1" skills="${2:-}"
   _cmd_exists npx || { err "npx not found — install Node.js first: https://nodejs.org"; return 1; }
-  npx skills add "$repo" -g -y
+  local -a args=(--yes skills add "$repo" -g -y)
+  local s
+  for s in $skills; do args+=(--skill "$s"); done
+  _SKILLS_LS_LOADED=false
+  npx "${args[@]}"
 }
+
+# ── shared skill sets (last field of "skill|..." entries) ─────────────────────
+# aws-samples/sample-apex-skills without its vendored copies (terraform-skill,
+# skill-creator) and the skills that only maintain the APEX repo itself.
+# Keep it on one logical line: entries are parsed with `read`, which stops at \n.
+APEX_SKILLS="eks-best-practices eks-build eks-cost-intelligence eks-design eks-genai \
+eks-ingress-migration eks-mcp-server eks-operation-review eks-platform-engineering \
+eks-recon eks-security eks-upgrade-check eks-well-architected-review \
+ecs-architect ecs-build ecs-devops ecs-genai ecs-modernize ecs-observability \
+ecs-operation-review ecs-recon ecs-security dotnet-aws-ecs graviton-migration"
+
+# google/skills (153 skills) narrowed to GKE + GCP operations. The rest of the
+# catalog stays reachable through finding-google-skills.
+GOOGLE_SKILLS="gcloud google-cloud-recipe-auth finding-google-skills \
+gke-basics gke-cluster-creation gke-golden-path gke-productionize gke-reliability \
+gke-upgrades gke-networking gke-service-networking gke-storage gke-storage-troubleshooting \
+gke-cluster-autoscaler gke-compute-classes gke-workload-scaling \
+gke-workload-scaling-troubleshooting gke-workload-troubleshooting gke-node-notready \
+gke-workload-identity gke-workload-security gke-platform-security gke-multitenancy \
+gke-backup-dr gke-observability gke-alert-configuration gke-cost-analysis \
+gke-cost-optimization gke-manifest-generation gke-app-onboarding \
+cloud-logging-query-generation cloud-logging-configuration-basics \
+cloud-logging-cross-project-configuration cloud-monitoring-promql-query \
+cloud-monitoring-metric-selection cloud-trace-querying google-cloud-slo-alert-configuration \
+google-cloud-networking-observability google-cloud-global-frontend-configuration \
+iam-helper-for-policy-management iam-helper-for-policy-simulator \
+iam-helper-for-privileged-access-management iam-helper-for-troubleshooting \
+google-cloud-waf-reliability google-cloud-waf-security google-cloud-waf-cost-optimization \
+google-cloud-waf-operational-excellence google-cloud-waf-performance-optimization \
+google-cloud-waf-sustainability"
 
 # ── shared tool checks + installs (common across all bootstrap-* scripts) ─────
 _beads_installed() { _cmd_exists bd; }
@@ -243,7 +289,7 @@ _comp_is_installed() {
       ;;
     skill)
       local label _ check_name
-      IFS='|' read -r label _ check_name <<< "$rest"
+      IFS='|' read -r label _ check_name _ <<< "$rest"
       _skill_installed "$check_name"
       ;;
     *) return 1 ;;
@@ -413,13 +459,13 @@ bootstrap_run() {
       IFS='|' read -r label key mkt_src mkt_id <<< "$rest"
       _install_plugin "$key" "$mkt_src" "$mkt_id" || status="fail"
     elif [[ "$type" == "skill" ]]; then
-      local label repo check_name
-      IFS='|' read -r label repo check_name <<< "$rest"
+      local label repo check_name skills
+      IFS='|' read -r label repo check_name skills <<< "$rest"
       if _skill_installed "$check_name"; then
         ok "${label} already installed — skipping"
       else
         log "Installing ${label}..."
-        _install_skill "$repo" || status="fail"
+        _install_skill "$repo" "$skills" || status="fail"
       fi
     fi
 

@@ -20,6 +20,19 @@ COMPONENTS=(
   "plugin|plugin-dev|plugin-dev@claude-plugins-official|anthropics/claude-plugins-official|claude-plugins-official"
   "plugin|terraform|terraform@hashicorp|hashicorp/agent-skills|hashicorp"
   "plugin|terraform-skill|terraform-skill@antonbabenko|antonbabenko/agent-plugins|antonbabenko"
+  "plugin|kubernetes-skill|kubernetes-skill@kubernetes-skill|LukasNiessen/kubernetes-skill|kubernetes-skill"
+  "header|── Grafana ────────────────────────────────────────"
+  "plugin|grafana-core|grafana-core@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-lgtm|grafana-lgtm@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-cloud|grafana-cloud@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-k6|grafana-k6@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-datasources|grafana-datasources@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-plugins|grafana-plugins@grafana-skills|grafana/skills|grafana-skills"
+  "plugin|grafana-app-sdk|grafana-app-sdk@grafana-skills|grafana/skills|grafana-skills"
+  "header|── AWS ────────────────────────────────────────────"
+  "skill|APEX skills (AWS EKS/ECS)|aws-samples/sample-apex-skills|eks-recon|${APEX_SKILLS}"
+  "header|── Google Cloud ───────────────────────────────────"
+  "skill|google skills (GKE/GCP ops)|google/skills|gke-basics|${GOOGLE_SKILLS}"
 )
 
 # ── idempotency checks ────────────────────────────────────────────────────────
