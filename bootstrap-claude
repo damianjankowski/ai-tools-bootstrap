@@ -21,6 +21,7 @@ COMPONENTS=(
   "plugin|terraform|terraform@hashicorp|hashicorp/agent-skills|hashicorp"
   "plugin|terraform-skill|terraform-skill@antonbabenko|antonbabenko/agent-plugins|antonbabenko"
   "plugin|kubernetes-skill|kubernetes-skill@kubernetes-skill|LukasNiessen/kubernetes-skill|kubernetes-skill"
+  "skill|mattpocock skills (handoff)|mattpocock/skills|handoff|${MATTPOCOCK_SKILLS}"
   "header|── Grafana ────────────────────────────────────────"
   "plugin|grafana-core|grafana-core@grafana-skills|grafana/skills|grafana-skills"
   "plugin|grafana-lgtm|grafana-lgtm@grafana-skills|grafana/skills|grafana-skills"
