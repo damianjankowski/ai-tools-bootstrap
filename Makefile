@@ -10,7 +10,7 @@
 # ── help ──────────────────────────────────────────────────────────────────────
 help:
 	@echo ""
-	@echo "Claude Code bootstrap"
+	@echo "AI tools bootstrap"
 	@echo "─────────────────────────────────────────────"
 	@echo "  bootstrap                  Claude Code — interactive install (dialog TUI)"
 	@echo "  bootstrap-codex            Codex — interactive install (dialog TUI)"
@@ -21,7 +21,7 @@ help:
 	@echo ""
 	@echo "Install"
 	@echo "  install-beads              Install beads"
-	@echo "  install-codebase-memory-mcp  Install beads + codebase-memory-mcp (--ui)"
+	@echo "  install-codebase-memory-mcp  Install codebase-memory-mcp"
 	@echo ""
 	@echo "codebase-memory-mcp"
 	@echo "  cbm-ui                     Start Graph Visualization UI (port 9749)"
@@ -42,6 +42,9 @@ help:
 	@echo "  test                       Run lib unit tests (stubbed, installs nothing)"
 	@echo ""
 
+# Runs one lib function: $(LIB) <function> [args]
+LIB = bash -euo pipefail -c 'source lib/bootstrap-lib.sh && "$$@"' _
+
 # ── bootstrap ─────────────────────────────────────────────────────────────────
 bootstrap:
 	@bash ./bootstrap-claude
@@ -53,7 +56,7 @@ bootstrap-opencode:
 	@bash ./bootstrap-opencode
 
 skills-update:
-	@npx skills update -g -y
+	@$(LIB) _skills update -g -y
 
 plugins-update:
 	@bash ./bootstrap-claude --update
@@ -63,15 +66,15 @@ plugins-list:
 
 # ── install ───────────────────────────────────────────────────────────────────
 install-beads:
-	@bash ./install-tools.sh
+	@$(LIB) _install_beads
 
 install-codebase-memory-mcp:
-	@bash ./install-tools.sh --with-mcp
+	@$(LIB) _install_codebase_memory_mcp
 
 # ── codebase-memory-mcp ───────────────────────────────────────────────────────
 cbm-ui:
 	@command -v codebase-memory-mcp >/dev/null || { echo "codebase-memory-mcp not installed. Run: make install-codebase-memory-mcp"; exit 1; }
-	codebase-memory-mcp --ui=true --port=9749
+	@codebase-memory-mcp --ui=true --port=9749
 
 cbm-auto-index:
 	@command -v codebase-memory-mcp >/dev/null || { echo "codebase-memory-mcp not installed. Run: make install-codebase-memory-mcp"; exit 1; }
