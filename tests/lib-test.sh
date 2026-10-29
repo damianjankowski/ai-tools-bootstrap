@@ -167,6 +167,43 @@ t_summary_fail() {
   ! _print_summary S "a:ok" "b:fail" >/dev/null 2>&1 && _print_summary S >/dev/null
 }
 
+t_plugin_scope() {
+  HOME="$(mktemp -d)"
+  mkdir -p "$HOME/.claude/plugins"
+  echo '{"plugins":{"a@m":[{"scope":"local","version":"1"}],"b@m":[{"scope":"local","version":"1"},{"scope":"user","version":"2"}]}}' \
+    >"$HOME/.claude/plugins/installed_plugins.json"
+  ! _plugin_installed a@m && _plugin_installed b@m && [[ "$(_plugin_version b@m)" == "2" ]]
+}
+
+t_jq_preflight() {
+  HOME="$(mktemp -d)"
+  COMPONENTS=("plugin|P|p@m|src|m")
+  _cmd_exists() { [[ "$1" != jq ]] && command -v "$1" >/dev/null; }
+  claude() { :; }
+  local errf
+  errf="$(mktemp)"
+  ! bootstrap_update_plugins >/dev/null 2>"$errf" && grep -q 'jq not found' "$errf" || return 1
+  : >"$errf"
+  ! bootstrap_list_plugin_versions >/dev/null 2>"$errf" && grep -q 'jq not found' "$errf"
+}
+
+t_marketplace_update_per_id() {
+  COMPONENTS=("plugin|A|a@m1|s1|m1" "plugin|B|b@m2|s2|m2" "plugin|C|c@m1|s1|m1")
+  claude() { echo "$*" >>"$LOG"; }
+  _update_plugin() { :; }
+  bootstrap_update_plugins >/dev/null 2>&1 || return 1
+  [[ "$(grep 'marketplace' "$LOG")" == "plugin marketplace update m1
+plugin marketplace update m2" ]]
+}
+
+t_skill_bundle() {
+  _SKILLS_LS_LOADED=true
+  _SKILLS_LS='[{"name": "handoff"}]'
+  _skill_bundle_installed handoff "handoff" \
+    && ! _skill_bundle_installed handoff "handoff grill-me" \
+    && _skill_bundle_installed handoff ""
+}
+
 check lib_sources_strict t_lib_sources_strict
 check tool_install_failure t_tool_install_failure
 check plugin_install_failure t_plugin_install_failure
@@ -182,6 +219,10 @@ check main_unknown t_main_unknown
 check main_help t_main_help
 check run_yes_tools_only t_run_yes_tools_only
 check summary_fail t_summary_fail
+check plugin_scope t_plugin_scope
+check jq_preflight t_jq_preflight
+check marketplace_update_per_id t_marketplace_update_per_id
+check skill_bundle t_skill_bundle
 
 rm -f "$LOG"
 exit $((fails > 0))

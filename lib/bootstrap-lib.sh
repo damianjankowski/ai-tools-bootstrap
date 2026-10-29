@@ -35,11 +35,17 @@ _need() {
   _cmd_exists "$1" || { err "$1 not found — ${2:-brew install $1}"; return 1; }
 }
 
+# Plugin commands need the claude CLI, and jq to read its JSON state.
+_need_plugin_tools() {
+  _need claude "install Claude Code first (make bootstrap)" && _need jq
+}
+
+# Only user-scope installs count; project/local scopes belong to other repos.
 _plugin_installed() {
   local key="$1"
   local f="$HOME/.claude/plugins/installed_plugins.json"
   _cmd_exists jq || return 1
-  [[ -f "$f" ]] && jq -e --arg k "$key" '.plugins | has($k)' "$f" >/dev/null 2>&1
+  [[ -f "$f" ]] && jq -e --arg k "$key" 'any(.plugins[$k][]?; .scope == "user")' "$f" >/dev/null 2>&1
 }
 
 _plugin_version() {
@@ -47,7 +53,8 @@ _plugin_version() {
   local f="$HOME/.claude/plugins/installed_plugins.json"
   _cmd_exists jq || { printf 'unknown'; return; }
   [[ -f "$f" ]] || { printf 'not installed'; return; }
-  jq -r --arg k "$key" '.plugins[$k][0].version // "unknown"' "$f" 2>/dev/null || printf 'unknown'
+  jq -r --arg k "$key" 'first(.plugins[$k][]? | select(.scope == "user") | .version) // "unknown"' "$f" 2>/dev/null \
+    || printf 'unknown'
 }
 
 _marketplace_exists() {
@@ -73,6 +80,15 @@ _skill_installed() {
   fi
   # skills >= 1.7 pretty-prints the JSON ("name": "x"), older releases did not
   grep -Eq "\"name\"[[:space:]]*:[[:space:]]*\"${skill_name}\"" <<< "$_SKILLS_LS"
+}
+
+# A bundle counts as installed only when every listed skill is (so skills
+# added to a list later still get installed). No list: check_name alone.
+_skill_bundle_installed() {
+  local check_name="$1" skills="${2:-}" s
+  for s in ${skills:-$check_name}; do
+    _skill_installed "$s" || return 1
+  done
 }
 
 # ── shared install helpers ────────────────────────────────────────────────────
@@ -158,6 +174,7 @@ _install_codebase_memory_mcp() {
 
 _install_plugin() {
   local key="$1" mkt_src="$2" mkt_id="${3:-}"
+  _need_plugin_tools || return 1
   if _plugin_installed "$key"; then
     ok "${key%%@*} already installed — skipping"; return 0
   fi
@@ -190,6 +207,7 @@ _update_plugin() {
 
 # Lists every plugin defined in COMPONENTS with its installed version.
 bootstrap_list_plugin_versions() {
+  _need_plugin_tools || return 1
   local comp
   for comp in "${COMPONENTS[@]}"; do
     [[ "${comp%%|*}" == "plugin" ]] || continue
@@ -207,7 +225,7 @@ bootstrap_list_plugin_versions() {
 # Updates every marketplace referenced by COMPONENTS once, then updates each
 # installed plugin. Reads the global COMPONENTS array.
 bootstrap_update_plugins() {
-  _cmd_exists claude || { err "claude CLI not found — install Claude Code first"; return 1; }
+  _need_plugin_tools || return 1
 
   local -a mkt_ids=()
   local comp
@@ -218,14 +236,15 @@ bootstrap_update_plugins() {
     IFS='|' read -r label key mkt_src mkt_id <<< "$rest"
     [[ -n "$mkt_id" ]] || continue
     local seen=false m
-    for m in "${mkt_ids[@]:-}"; do [[ "$m" == "$mkt_id" ]] && seen=true && break; done
+    for m in "${mkt_ids[@]+"${mkt_ids[@]}"}"; do [[ "$m" == "$mkt_id" ]] && seen=true && break; done
     "$seen" || mkt_ids+=("$mkt_id")
   done
 
-  if [[ "${#mkt_ids[@]}" -gt 0 ]]; then
-    log "Updating plugin marketplaces..."
-    claude plugin marketplace update || warn "marketplace update failed"
-  fi
+  local id
+  for id in "${mkt_ids[@]+"${mkt_ids[@]}"}"; do
+    log "Updating marketplace ${id}..."
+    claude plugin marketplace update "$id" || warn "marketplace ${id} update failed"
+  done
 
   local -a results=()
   local status
@@ -261,9 +280,9 @@ _comp_is_installed() {
       _plugin_installed "$key"
       ;;
     skill)
-      local label _ check_name
-      IFS='|' read -r label _ check_name _ <<< "$rest"
-      _skill_installed "$check_name"
+      local label _ check_name skills
+      IFS='|' read -r label _ check_name skills <<< "$rest"
+      _skill_bundle_installed "$check_name" "$skills"
       ;;
     *) return 1 ;;
   esac
@@ -458,7 +477,7 @@ bootstrap_run() {
     elif [[ "$type" == "skill" ]]; then
       local label repo check_name skills
       IFS='|' read -r label repo check_name skills <<< "$rest"
-      if _skill_installed "$check_name"; then
+      if _skill_bundle_installed "$check_name" "$skills"; then
         ok "${label} already installed — skipping"
       else
         log "Installing ${label}..."
