@@ -102,12 +102,40 @@ t_cbm_install_args() {
     && ! grep -q 'cbm config set' "$LOG"
 }
 
+t_parse_selection() {
+  [[ "$(_parse_selection 10 "3 1,2  3")" == "1 2 3" ]] || return 1
+  [[ "$(_parse_selection 10 "1,,10")" == "1 10" ]] || return 1
+  local bad out
+  for bad in "1-3" "q" "0" "11" "a"; do
+    if out="$(_parse_selection 10 "$bad")" || [[ -n "$out" ]]; then
+      echo "  accepted: $bad" >&2; return 1
+    fi
+  done
+}
+
+t_text_picker_eof() {
+  ! _pick_components_text 3 "1 2" "  [ 1]    a" </dev/null 2>/dev/null
+}
+
+t_text_picker_input() {
+  local out errf
+  errf="$(mktemp)"
+  out="$(_pick_components_text 3 "1 2" "x" <<< $'x\n2,1' 2>"$errf")" || return 1
+  [[ "$out" == "1 2" ]] && grep -q 'Invalid selection: x' "$errf" || return 1
+  rm -f "$errf"
+  [[ "$(_pick_components_text 3 "1 2" "x" <<< '' 2>/dev/null)" == "1 2" ]] || return 1
+  ! _pick_components_text 3 "1 2" "x" <<< 'q' >/dev/null 2>&1
+}
+
 check lib_sources_strict t_lib_sources_strict
 check tool_install_failure t_tool_install_failure
 check plugin_install_failure t_plugin_install_failure
 check brew_args t_brew_args
 check installed_tool_skips_brew t_installed_tool_skips_brew
 check cbm_install_args t_cbm_install_args
+check parse_selection t_parse_selection
+check text_picker_eof t_text_picker_eof
+check text_picker_input t_text_picker_input
 
 rm -f "$LOG"
 exit $((fails > 0))

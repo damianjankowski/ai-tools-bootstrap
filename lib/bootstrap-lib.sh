@@ -297,101 +297,88 @@ _comp_label() {
 # Reads global COMPONENTS array. Prints space-separated numbers to stdout.
 # Exits non-zero if user cancels.
 _pick_components() {
-  local -a dialog_args=()
-  local -a item_labels=()
-  local n=0 h=0
+  local -a dialog_args=() item_labels=() header_labels=() lines=()
+  local defaults="" n=0 h=0 comp
 
+  # One pass: each install check (slow for skills) runs once.
   for comp in "${COMPONENTS[@]}"; do
     local type="${comp%%|*}"
     local rest="${comp#*|}"
+    local label="${rest%%|*}"
     if [[ "$type" == "header" ]]; then
       h=$((h+1))
-      dialog_args+=("h${h}" "${rest%%|*}" "off")
+      dialog_args+=("h${h}" "$label" "off")
+      header_labels+=("$label")
+      lines+=("" "$label")
     else
       n=$((n+1))
-      local label="${rest%%|*}"
-      local status display_label
       if _comp_is_installed "$comp"; then
-        status="off"
-        display_label="${label} ✓"
+        dialog_args+=("$n" "${label} ✓" "off")
+        item_labels[n]="${label} ✓"
+        lines+=("$(printf '  [%2d] ✓  %s' "$n" "$label")")
       else
-        status="on"
-        display_label="$label"
+        dialog_args+=("$n" "$label" "on")
+        item_labels[n]="$label"
+        lines+=("$(printf '  [%2d]    %s' "$n" "$label")")
+        defaults+="$n "
       fi
-      dialog_args+=("$n" "$display_label" "$status")
-      item_labels[n]="$display_label"
     fi
   done
 
-  local list_h=$((n + h))
-  local box_h=$((list_h + 7))
-  [[ $box_h -gt 40 ]] && box_h=40
-
-  if _cmd_exists dialog; then
-    local raw result="" desc
-    raw="$(dialog --stdout --no-tags --separate-output \
-      --checklist "Select components to install:" \
-      $box_h 65 $list_h \
-      "${dialog_args[@]}")" || return 1
-    while IFS= read -r desc; do
-      [[ -z "$desc" ]] && continue
-      if [[ "$desc" =~ ^[0-9]+$ ]] && [[ -n "${item_labels[$desc]:-}" ]]; then
-        result+="$desc "; continue
-      fi
-      local i
-      for i in "${!item_labels[@]}"; do
-        if [[ "${item_labels[$i]}" == "$desc" ]]; then
-          result+="$i "; break
-        fi
-      done
-    done <<< "$raw"
-    if [[ -n "${raw//[[:space:]]/}" ]] && [[ -z "${result// /}" ]]; then
-      err "Could not map dialog output to components: ${raw//$'\n'/ }"
-      return 1
-    fi
-    printf '%s' "${result% }"
-  else
-    _pick_components_text "$n"
+  if ! _cmd_exists dialog; then
+    _pick_components_text "$n" "${defaults% }" "${lines[@]}"
+    return
   fi
-}
 
-_pick_components_text() {
-  local total="$1"
-
-  local n=0 h=0
-  {
-    printf '\n'
-    for comp in "${COMPONENTS[@]}"; do
-      local type="${comp%%|*}"
-      local rest="${comp#*|}"
-      if [[ "$type" == "header" ]]; then
-        printf '%s\n\n' "${rest%%|*}"
-      else
-        n=$((n+1))
-        local mark
-        _comp_is_installed "$comp" && mark="✓" || mark=" "
-        printf '  [%2d] %s  %s\n' "$n" "$mark" "${rest%%|*}"
-      fi
+  # dialog prints tags or labels (depends on version); headers are not items.
+  local raw result="" desc i
+  raw="$(dialog --stdout --no-tags --separate-output \
+    --checklist "Select components to install:" 0 65 0 \
+    "${dialog_args[@]}")" || return 1
+  while IFS= read -r desc; do
+    [[ -z "$desc" || "$desc" =~ ^h[0-9]+$ ]] && continue
+    if [[ "$desc" =~ ^[0-9]+$ ]] && [[ -n "${item_labels[desc]:-}" ]]; then
+      result+="$desc "; continue
+    fi
+    for i in "${!item_labels[@]}"; do
+      [[ "${item_labels[i]}" == "$desc" ]] && { result+="$i "; continue 2; }
     done
-    printf '\nEnter numbers [1-%d] or Enter for all: ' "$total"
-  } >/dev/tty
-
-  local user_input
-  read -r user_input < /dev/tty || user_input=""
-  _parse_selection "$total" "${user_input:-}"
+    for i in "${header_labels[@]+"${header_labels[@]}"}"; do
+      [[ "$i" == "$desc" ]] && continue 2
+    done
+    err "Could not map dialog output to a component: $desc"
+    return 1
+  done <<< "$raw"
+  printf '%s' "${result% }"
 }
 
-# Returns space-separated valid sorted numbers. Empty/invalid → all.
+# Text fallback without dialog. Prompts on stderr (stdout is the result).
+_pick_components_text() {
+  local max="$1" defaults="$2"; shift 2
+  local input sel
+  printf '%s\n' "$@" >&2
+  while true; do
+    printf '\nNumbers (e.g. 1 3 5 or 1,3,5), Enter = not yet installed, q = cancel: ' >&2
+    read -r input || return 1
+    [[ "$input" == "q" ]] && return 1
+    [[ -z "${input// /}" ]] && { printf '%s' "$defaults"; return 0; }
+    sel="$(_parse_selection "$max" "$input")" && { printf '%s' "$sel"; return 0; }
+    err "Invalid selection: $input"
+  done
+}
+
+# Prints valid numbers sorted and unique; returns 1 if any token is invalid.
 _parse_selection() {
-  local max="$1" input="$2"
-  local all
-  all="$(seq 1 "$max" | tr '\n' ' ' | sed 's/ $//')"
-  if [[ -z "${input// /}" ]]; then printf '%s' "$all"; return; fi
-  local filtered
-  filtered="$(printf '%s' "$input" | tr -s '[:space:]' '\n' \
-    | awk -v m="$max" '$1~/^[0-9]+$/ && $1>=1 && $1<=m' || true)"
-  if [[ -z "$filtered" ]]; then printf '%s' "$all"; return; fi
-  printf '%s' "$filtered" | sort -nu | tr '\n' ' ' | sed 's/ $//'
+  local max="$1" input="$2" t
+  local -a tokens=() nums=()
+  IFS=', ' read -ra tokens <<< "$input"
+  for t in "${tokens[@]+"${tokens[@]}"}"; do
+    [[ -z "$t" ]] && continue
+    [[ "$t" =~ ^[0-9]+$ ]] && (( 10#$t >= 1 && 10#$t <= max )) || return 1
+    nums+=("$((10#$t))")
+  done
+  [[ ${#nums[@]} -gt 0 ]] || return 1
+  printf '%s\n' "${nums[@]}" | sort -nu | tr '\n' ' ' | sed 's/ $//'
 }
 
 # ── main runner ───────────────────────────────────────────────────────────────
@@ -408,7 +395,6 @@ bootstrap_run() {
     item_map[n]="$comp"
     [[ "$type" == "tool" ]] && auto_str+="$n "
   done
-  local total=$n
 
   local selected_str
   local -a selected
