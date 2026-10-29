@@ -24,9 +24,6 @@ warn() { printf '\033[1;33m!\033[0m %s\n' "$*"; }
 err()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; }
 
 # ── environment ───────────────────────────────────────────────────────────────
-INTERACTIVE=false
-[[ -t 1 ]] && INTERACTIVE=true
-
 # @latest: a bare `npx skills` keeps reusing whatever version is in the npx cache.
 SKILLS_PKG="skills@latest"
 
@@ -242,21 +239,7 @@ bootstrap_update_plugins() {
     results+=("${label}:${status}")
   done
 
-  printf '\n─────────────────────────────────────────\n'
-  printf 'Plugin update summary:\n\n'
-  for r in "${results[@]}"; do
-    local lbl="${r%%:*}" st="${r##*:}"
-    case "$st" in
-      ok)   ok  "$lbl" ;;
-      fail) err "$lbl — check output above for details" ;;
-    esac
-  done
-  printf '\n'
-
-  for r in "${results[@]}"; do
-    [[ "${r##*:}" == "fail" ]] && return 1
-  done
-  return 0
+  _print_summary "Plugin update summary" ${results[@]+"${results[@]}"}
 }
 
 # ── component helpers (parse COMPONENTS entries) ──────────────────────────────
@@ -382,42 +365,83 @@ _parse_selection() {
 }
 
 # ── main runner ───────────────────────────────────────────────────────────────
+# Prints "<title>:" and one line per "label:status" entry.
+# Returns 1 if any status is "fail".
+_print_summary() {
+  local title="$1"; shift
+  local r rc=0
+  printf '\n─────────────────────────────────────────\n'
+  printf '%s:\n\n' "$title"
+  for r in "$@"; do
+    if [[ "${r##*:}" == "fail" ]]; then
+      err "${r%:*} — check output above for details"; rc=1
+    else
+      ok "${r%:*}"
+    fi
+  done
+  printf '\n'
+  return "$rc"
+}
+
+bootstrap_usage() {
+  printf 'Usage: %s [-y|--yes] [-h|--help]\n' "$(basename "$0")"
+  printf '  -y, --yes        no prompt: install the tools only (no plugins or skills)\n'
+  printf '  -h, --help       show this help\n'
+  [[ -z "${BOOTSTRAP_EXTRA_USAGE:-}" ]] || printf '%s\n' "$BOOTSTRAP_EXTRA_USAGE"
+}
+
+# Entry point of every bootstrap-* script. Never installs without a choice:
+# no terminal and no --yes means stop.
+bootstrap_main() {
+  case "${1:-}" in
+    -y|--yes)  bootstrap_run --yes ;;
+    -h|--help) bootstrap_usage ;;
+    "")
+      if [[ -t 0 ]]; then
+        bootstrap_run
+      else
+        err "No terminal — rerun with --yes to install tools only"
+        return 1
+      fi
+      ;;
+    *)
+      err "Unknown option: $1"
+      bootstrap_usage >&2
+      return 2
+      ;;
+  esac
+}
+
 # Reads COMPONENTS, picks selection, runs installs, prints summary.
+# --yes: no picker, install every tool item.
 bootstrap_run() {
-  # Build item map: number → component string; track tool indices for non-interactive
-  local -a item_map=("") # 1-indexed
-  local auto_str=""
-  local n=0
+  local -a item_map=("") # 1-indexed: number → component string
+  local tools="" n=0 comp num
   for comp in "${COMPONENTS[@]}"; do
     local type="${comp%%|*}"
     [[ "$type" == "header" ]] && continue
     n=$((n+1))
     item_map[n]="$comp"
-    [[ "$type" == "tool" ]] && auto_str+="$n "
+    [[ "$type" == "tool" ]] && tools+="$n "
   done
 
-  local selected_str
+  local sel
   local -a selected
-
-  if [[ "$INTERACTIVE" == "true" ]]; then
-    local sel
-    sel="$(_pick_components)" || { warn "Bootstrap cancelled."; return 0; }
-    if [[ -z "${sel// /}" ]]; then warn "No components selected — nothing to do."; return 0; fi
-    selected_str="$sel"
+  if [[ "${1:-}" == "--yes" ]]; then
+    warn "--yes: installing tools only. Run without --yes to pick plugins and skills."
+    sel="$tools"
   else
-    warn "Non-interactive mode — installing tools automatically."
-    warn "Run interactively for plugins and configuration steps."
-    selected_str="${auto_str% }"
-    [[ -z "$selected_str" ]] && { warn "No tools defined — nothing to do."; return 0; }
+    sel="$(_pick_components)" || { warn "Bootstrap cancelled."; return 0; }
   fi
+  if [[ -z "${sel// /}" ]]; then warn "No components selected — nothing to do."; return 0; fi
 
-  read -ra selected <<< "$selected_str"
+  read -ra selected <<< "$sel"
 
   local -a results=()
   local status
 
   for num in "${selected[@]}"; do
-    local comp="${item_map[$num]:-}"
+    comp="${item_map[num]:-}"
     [[ -z "$comp" ]] && continue
     local type="${comp%%|*}"
     local rest="${comp#*|}"
@@ -445,19 +469,5 @@ bootstrap_run() {
     results+=("$(_comp_label "$comp"):${status}")
   done
 
-  printf '\n─────────────────────────────────────────\n'
-  printf 'Bootstrap summary:\n\n'
-  for r in "${results[@]}"; do
-    local lbl="${r%%:*}" st="${r##*:}"
-    case "$st" in
-      ok)   ok  "$lbl" ;;
-      fail) err "$lbl — check output above for details" ;;
-    esac
-  done
-  printf '\n'
-
-  for r in "${results[@]}"; do
-    [[ "${r##*:}" == "fail" ]] && return 1
-  done
-  return 0
+  _print_summary "Bootstrap summary" ${results[@]+"${results[@]}"}
 }

@@ -127,6 +127,46 @@ t_text_picker_input() {
   ! _pick_components_text 3 "1 2" "x" <<< 'q' >/dev/null 2>&1
 }
 
+t_main_no_tty() {
+  local errf rc=0
+  errf="$(mktemp)"
+  bootstrap_run() { echo "run $*" >>"$LOG"; }
+  bootstrap_main </dev/null 2>"$errf" || rc=$?
+  [[ $rc -eq 1 ]] && grep -q -- '--yes' "$errf" && [[ ! -s "$LOG" ]]
+}
+
+t_main_yes() {
+  bootstrap_run() { echo "run $*"; }
+  [[ "$(bootstrap_main --yes </dev/null)" == "run --yes" ]]
+}
+
+t_main_unknown() {
+  local errf rc=0
+  errf="$(mktemp)"
+  bootstrap_run() { echo "run $*" >>"$LOG"; }
+  bootstrap_main --updte >/dev/null 2>"$errf" || rc=$?
+  [[ $rc -eq 2 ]] && grep -q 'Unknown option: --updte' "$errf" \
+    && grep -q 'Usage:' "$errf" && [[ ! -s "$LOG" ]]
+}
+
+t_main_help() {
+  local out
+  out="$(bootstrap_main -h)" && [[ "$out" == *--yes* ]]
+}
+
+t_run_yes_tools_only() {
+  COMPONENTS=("header|H" "tool|T|t_chk|t_inst" "plugin|P|p@m|src|m")
+  t_chk() { return 1; }
+  t_inst() { echo inst >>"$LOG"; }
+  _install_plugin() { echo plugin >>"$LOG"; }
+  bootstrap_run --yes >/dev/null 2>&1 && [[ "$(cat "$LOG")" == "inst" ]]
+}
+
+t_summary_fail() {
+  set -u
+  ! _print_summary S "a:ok" "b:fail" >/dev/null 2>&1 && _print_summary S >/dev/null
+}
+
 check lib_sources_strict t_lib_sources_strict
 check tool_install_failure t_tool_install_failure
 check plugin_install_failure t_plugin_install_failure
@@ -136,6 +176,12 @@ check cbm_install_args t_cbm_install_args
 check parse_selection t_parse_selection
 check text_picker_eof t_text_picker_eof
 check text_picker_input t_text_picker_input
+check main_no_tty t_main_no_tty
+check main_yes t_main_yes
+check main_unknown t_main_unknown
+check main_help t_main_help
+check run_yes_tools_only t_run_yes_tools_only
+check summary_fail t_summary_fail
 
 rm -f "$LOG"
 exit $((fails > 0))

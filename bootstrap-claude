@@ -49,8 +49,11 @@ _install_claude_code() {
 }
 
 # ── run ───────────────────────────────────────────────────────────────────────
+BOOTSTRAP_EXTRA_USAGE="  --update         update installed plugins (and their marketplaces)
+  --list-versions  show installed plugin versions"
+
 case "${1:-}" in
   --update) bootstrap_update_plugins ;;
   --list-versions) bootstrap_list_plugin_versions ;;
-  *) bootstrap_run ;;
+  *) bootstrap_main "$@" ;;
 esac
