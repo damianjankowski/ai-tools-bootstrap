@@ -4,7 +4,8 @@
         install-beads install-codebase-memory-mcp \
         cbm-ui cbm-auto-index cbm-update \
         init-beads setup-claude setup-codex setup-list \
-        bd-prime bd-ready bd-backup
+        bd-prime bd-ready bd-backup _bd-check \
+        lint test
 
 # ── help ──────────────────────────────────────────────────────────────────────
 help:
@@ -35,6 +36,10 @@ help:
 	@echo "  bd-prime                   bd prime — print workflow context + memories"
 	@echo "  bd-ready                   bd ready — list tasks with no open blockers"
 	@echo "  bd-backup                  bd backup sync"
+	@echo ""
+	@echo "Development"
+	@echo "  lint                       bash -n + shellcheck on all scripts"
+	@echo "  test                       Run lib unit tests (stubbed, installs nothing)"
 	@echo ""
 
 # ── bootstrap ─────────────────────────────────────────────────────────────────
@@ -107,3 +112,13 @@ bd-ready: _bd-check
 
 bd-backup: _bd-check
 	@bd backup sync
+
+# ── development ───────────────────────────────────────────────────────────────
+SCRIPTS = bootstrap-claude bootstrap-codex bootstrap-opencode lib/bootstrap-lib.sh tests/lib-test.sh
+
+lint:
+	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
+	@shellcheck -x $(SCRIPTS)
+
+test:
+	@bash tests/lib-test.sh

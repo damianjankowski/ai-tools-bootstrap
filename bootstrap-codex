@@ -2,6 +2,7 @@
 set -euo pipefail
 
 _BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# shellcheck source=lib/bootstrap-lib.sh
 source "${_BOOTSTRAP_DIR}/lib/bootstrap-lib.sh"
 
 # ── components ────────────────────────────────────────────────────────────────

@@ -24,14 +24,6 @@ warn() { printf '\033[1;33m!\033[0m %s\n' "$*"; }
 err()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; }
 
 # ── environment ───────────────────────────────────────────────────────────────
-SCRIPT_DIR="${_BOOTSTRAP_DIR:-}"
-INSTALL_SH=""
-INSTALL_TOOLS_SH=""
-if [[ -n "$SCRIPT_DIR" ]]; then
-  INSTALL_SH="${SCRIPT_DIR}/install.sh"
-  INSTALL_TOOLS_SH="${SCRIPT_DIR}/install-tools.sh"
-fi
-
 INTERACTIVE=false
 [[ -t 1 ]] && INTERACTIVE=true
 
@@ -113,6 +105,7 @@ _install_skill() {
 # aws-samples/sample-apex-skills without its vendored copies (terraform-skill,
 # skill-creator) and the skills that only maintain the APEX repo itself.
 # Keep it on one logical line: entries are parsed with `read`, which stops at \n.
+# shellcheck disable=SC2034  # used in COMPONENTS of bootstrap-*
 APEX_SKILLS="eks-best-practices eks-build eks-cost-intelligence eks-design eks-genai \
 eks-ingress-migration eks-mcp-server eks-operation-review eks-platform-engineering \
 eks-recon eks-security eks-upgrade-check eks-well-architected-review \
@@ -121,6 +114,7 @@ ecs-operation-review ecs-recon ecs-security dotnet-aws-ecs graviton-migration"
 
 # google/skills (153 skills) narrowed to GKE + GCP operations. The rest of the
 # catalog stays reachable through finding-google-skills.
+# shellcheck disable=SC2034  # used in COMPONENTS of bootstrap-*
 GOOGLE_SKILLS="gcloud google-cloud-recipe-auth finding-google-skills \
 gke-basics gke-cluster-creation gke-golden-path gke-productionize gke-reliability \
 gke-upgrades gke-networking gke-service-networking gke-storage gke-storage-troubleshooting \
@@ -142,6 +136,7 @@ google-cloud-waf-sustainability"
 # mattpocock/skills, picked one by one: without a list skills.sh also installs
 # the in-progress/ and misc/ buckets. grill-me and grill-with-docs only delegate
 # to grilling (and domain-modeling), so add those dependencies with them.
+# shellcheck disable=SC2034  # used in COMPONENTS of bootstrap-*
 MATTPOCOCK_SKILLS="handoff"
 
 # ── shared tool checks + installs (common across all bootstrap-* scripts) ─────
@@ -151,9 +146,7 @@ _cbm_installed()   { _cmd_exists codebase-memory-mcp; }
 _install_beads() {
   if _beads_installed; then ok "beads already present — skipping"; return 0; fi
   log "Installing beads..."
-  if [[ -n "${INSTALL_TOOLS_SH:-}" ]] && [[ -f "$INSTALL_TOOLS_SH" ]]; then
-    bash "$INSTALL_TOOLS_SH"
-  elif _cmd_exists brew; then
+  if _cmd_exists brew; then
     _brew_install beads
   else
     _curl_install https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh
@@ -164,13 +157,9 @@ _install_beads() {
 _install_codebase_memory_mcp() {
   if _cbm_installed; then ok "codebase-memory-mcp already present — skipping"; return 0; fi
   log "Installing codebase-memory-mcp..."
-  if [[ -n "${INSTALL_TOOLS_SH:-}" ]] && [[ -f "$INSTALL_TOOLS_SH" ]]; then
-    bash "$INSTALL_TOOLS_SH" --with-mcp
-  else
-    _curl_install https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh --ui
-    _cmd_exists codebase-memory-mcp || { err "codebase-memory-mcp install failed"; return 1; }
-    codebase-memory-mcp config set auto_index true
-  fi
+  _curl_install https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh --ui
+  _cmd_exists codebase-memory-mcp || { err "codebase-memory-mcp install failed"; return 1; }
+  codebase-memory-mcp config set auto_index true
   ok "codebase-memory-mcp installed"
 }
 
@@ -314,7 +303,6 @@ _comp_label() {
 _pick_components() {
   local -a dialog_args=()
   local -a item_labels=()
-  local -a item_is_tool=()
   local n=0 h=0
 
   for comp in "${COMPONENTS[@]}"; do
@@ -335,8 +323,7 @@ _pick_components() {
         display_label="$label"
       fi
       dialog_args+=("$n" "$display_label" "$status")
-      item_labels[$n]="$display_label"
-      [[ "$type" == "tool" ]] && item_is_tool[$n]=1 || item_is_tool[$n]=0
+      item_labels[n]="$display_label"
     fi
   done
 
@@ -368,13 +355,12 @@ _pick_components() {
     fi
     printf '%s' "${result% }"
   else
-    _pick_components_text "$n" "${item_labels[@]}"
+    _pick_components_text "$n"
   fi
 }
 
 _pick_components_text() {
-  local total="$1"; shift
-  local -a labels=("" "$@")  # 1-indexed
+  local total="$1"
 
   local n=0 h=0
   {
@@ -423,7 +409,7 @@ bootstrap_run() {
     local type="${comp%%|*}"
     [[ "$type" == "header" ]] && continue
     n=$((n+1))
-    item_map[$n]="$comp"
+    item_map[n]="$comp"
     [[ "$type" == "tool" ]] && auto_str+="$n "
   done
   local total=$n
