@@ -149,6 +149,13 @@ t_main_unknown() {
     && grep -q 'Usage:' "$errf" && [[ ! -s "$LOG" ]]
 }
 
+t_main_extra_args() {
+  local rc=0
+  bootstrap_run() { echo "run $*" >>"$LOG"; }
+  bootstrap_main --yes --update >/dev/null 2>&1 || rc=$?
+  [[ $rc -eq 2 && ! -s "$LOG" ]]
+}
+
 t_main_help() {
   local out
   out="$(bootstrap_main -h)" && [[ "$out" == *--yes* ]]
@@ -217,6 +224,7 @@ check main_no_tty t_main_no_tty
 check main_yes t_main_yes
 check main_unknown t_main_unknown
 check main_help t_main_help
+check main_extra_args t_main_extra_args
 check run_yes_tools_only t_run_yes_tools_only
 check summary_fail t_summary_fail
 check plugin_scope t_plugin_scope

@@ -412,6 +412,11 @@ bootstrap_usage() {
 # Entry point of every bootstrap-* script. Never installs without a choice:
 # no terminal and no --yes means stop.
 bootstrap_main() {
+  if [[ $# -gt 1 ]]; then
+    err "Too many options: $*"
+    bootstrap_usage >&2
+    return 2
+  fi
   case "${1:-}" in
     -y|--yes)  bootstrap_run --yes ;;
     -h|--help) bootstrap_usage ;;
