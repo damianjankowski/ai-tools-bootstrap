@@ -27,8 +27,16 @@ err()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; }
 INTERACTIVE=false
 [[ -t 1 ]] && INTERACTIVE=true
 
+# @latest: a bare `npx skills` keeps reusing whatever version is in the npx cache.
+SKILLS_PKG="skills@latest"
+
 # ── shared checks ─────────────────────────────────────────────────────────────
 _cmd_exists()   { command -v "$1" &>/dev/null; }
+
+# Fails with a hint when a required command is missing.
+_need() {
+  _cmd_exists "$1" || { err "$1 not found — ${2:-brew install $1}"; return 1; }
+}
 
 _plugin_installed() {
   local key="$1"
@@ -54,16 +62,16 @@ _marketplace_exists() {
 
 # check-skill-name is the name of one skill from the package (used as installed proxy).
 # `npx skills ls` is slow (npm resolves the package on every run), so list once and
-# reuse it; _install_skill clears the cache. --yes and </dev/null: when a newer
-# `skills` release is not in the npx cache, npx asks "Ok to proceed?" — with stderr
-# hidden that prompt is invisible and the script hangs before the picker opens.
+# reuse it; _install_skill clears the cache. </dev/null: if npx still asks anything,
+# the prompt is invisible with stderr hidden and the script would hang before the
+# picker opens.
 _SKILLS_LS=""
 _SKILLS_LS_LOADED=false
 _skill_installed() {
   local skill_name="$1"
   _cmd_exists npx || return 1
   if [[ "$_SKILLS_LS_LOADED" != "true" ]]; then
-    _SKILLS_LS="$(npx --yes skills ls -g --json </dev/null 2>/dev/null || true)"
+    _SKILLS_LS="$(_skills ls -g --json </dev/null 2>/dev/null || true)"
     _SKILLS_LS_LOADED=true
   fi
   # skills >= 1.7 pretty-prints the JSON ("name": "x"), older releases did not
@@ -72,33 +80,23 @@ _skill_installed() {
 
 # ── shared install helpers ────────────────────────────────────────────────────
 _brew_install() {
-  local formula="$1"
-  if _cmd_exists brew; then
-    brew install "$formula"
-  else
-    err "brew not found — install Homebrew first: https://brew.sh"; return 1
-  fi
+  _need brew "install Homebrew first: https://brew.sh" || return 1
+  brew install "$@"
 }
 
-_npm_install() {
-  local pkg="$1"
-  _cmd_exists npm || { err "npm not found — install Node.js first: https://nodejs.org"; return 1; }
-  npm install -g "$pkg"
-}
-
-_curl_install() {
-  local url="$1"; shift
-  curl -fsSL "$url" | bash -s -- "$@"
+# Runs the skills CLI (Agent Skills, https://skills.sh).
+_skills() {
+  _need npx "install Node.js first: https://nodejs.org" || return 1
+  npx --yes "$SKILLS_PKG" "$@"
 }
 
 _install_skill() {
   local repo="$1" skills="${2:-}"
-  _cmd_exists npx || { err "npx not found — install Node.js first: https://nodejs.org"; return 1; }
-  local -a args=(--yes skills add "$repo" -g -y)
+  local -a args=(add "$repo" -g -y)
   local s
   for s in $skills; do args+=(--skill "$s"); done
   _SKILLS_LS_LOADED=false
-  npx "${args[@]}"
+  _skills "${args[@]}"
 }
 
 # ── shared skill sets (last field of "skill|..." entries) ─────────────────────
@@ -146,20 +144,18 @@ _cbm_installed()   { _cmd_exists codebase-memory-mcp; }
 _install_beads() {
   if _beads_installed; then ok "beads already present — skipping"; return 0; fi
   log "Installing beads..."
-  if _cmd_exists brew; then
-    _brew_install beads
-  else
-    _curl_install https://raw.githubusercontent.com/gastownhall/beads/main/scripts/install.sh
-  fi
+  _brew_install beads || return 1
   ok "beads installed"
 }
 
 _install_codebase_memory_mcp() {
   if _cbm_installed; then ok "codebase-memory-mcp already present — skipping"; return 0; fi
   log "Installing codebase-memory-mcp..."
-  _curl_install https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh --ui
-  _cmd_exists codebase-memory-mcp || { err "codebase-memory-mcp install failed"; return 1; }
-  codebase-memory-mcp config set auto_index true
+  # No brew formula. Installs the latest release to ~/.local/bin and registers
+  # the MCP server in the agents it detects. Needs pipefail (all callers set it).
+  curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh \
+    | bash -s || return 1
+  _cbm_installed || { err "codebase-memory-mcp install failed"; return 1; }
   ok "codebase-memory-mcp installed"
 }
 
@@ -173,7 +169,7 @@ _install_plugin() {
     claude plugin marketplace add "$mkt_src" || warn "marketplace add failed (may already exist)"
   fi
   log "Installing ${key%%@*}..."
-  claude plugin install "$key"
+  claude plugin install "$key" || return 1
   ok "${key%%@*} installed"
 }
 

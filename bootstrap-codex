@@ -30,7 +30,7 @@ _codex_installed() { _cmd_exists codex; }
 _install_codex() {
   if _codex_installed; then ok "Codex CLI already present — skipping"; return 0; fi
   log "Installing Codex CLI..."
-  _npm_install @openai/codex
+  _brew_install --cask codex || return 1
   ok "Codex CLI installed"
 }
 

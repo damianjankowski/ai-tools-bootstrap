@@ -33,11 +33,7 @@ _opencode_installed() { _cmd_exists opencode; }
 _install_opencode() {
   if _opencode_installed; then ok "OpenCode already present — skipping"; return 0; fi
   log "Installing OpenCode..."
-  if _cmd_exists brew; then
-    brew install anomalyco/tap/opencode
-  else
-    _curl_install https://opencode.ai/install
-  fi
+  _brew_install opencode || return 1
   ok "OpenCode installed"
 }
 

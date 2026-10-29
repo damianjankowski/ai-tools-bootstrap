@@ -44,7 +44,7 @@ _claude_installed()        { _cmd_exists claude; }
 _install_claude_code() {
   if _claude_installed; then ok "Claude Code CLI already present — skipping"; return 0; fi
   log "Installing Claude Code CLI..."
-  _npm_install @anthropic-ai/claude-code
+  _brew_install --cask claude-code || return 1
   ok "Claude Code CLI installed"
 }
 
