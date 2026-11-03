@@ -36,6 +36,11 @@ Without a terminal (for example in CI), the scripts stop unless you pass `--yes`
 
 - Tools are installed with Homebrew (Claude Code, Codex and OpenCode CLIs, beads).
 - Claude Code plugins and their marketplaces go to `~/.claude/plugins`, in user scope.
+- If chezmoi manages `~/.claude/settings.json`, the bootstrap only downloads plugins and registers
+  marketplaces. chezmoi turns plugins on through `enabledPlugins`, so the bootstrap puts
+  `settings.json` back after each `claude plugin` command. It warns about installed plugins that
+  chezmoi does not turn on, and `make plugins-list` marks them as `off`. Without chezmoi, the
+  `claude` CLI turns plugins on as usual.
 - Agent Skills are installed globally with `npx skills add -g`.
 - codebase-memory-mcp goes to `~/.local/bin`. Its installer also registers the MCP server in the
   agents it finds. Auto-indexing stays off unless you run `make cbm-auto-index`.

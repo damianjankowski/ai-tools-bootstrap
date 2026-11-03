@@ -13,7 +13,7 @@ fails=0
 
 # Safety net: every command that installs or changes something fails unless a
 # test stubs it, so a test can never reach the real tool.
-for _c in brew npm npx curl claude bd codebase-memory-mcp dialog; do
+for _c in brew npm npx curl claude chezmoi bd codebase-memory-mcp dialog; do
   eval "${_c}() { echo \"UNSTUBBED ${_c} \$*\" >&2; return 99; }"
 done
 unset _c
@@ -211,6 +211,65 @@ t_skill_bundle() {
     && _skill_bundle_installed handoff ""
 }
 
+# A temp HOME with settings.json set to $1.
+settings_home() {
+  HOME="$(mktemp -d)"
+  mkdir -p "$HOME/.claude/plugins"
+  printf '%s\n' "$1" >"$HOME/.claude/settings.json"
+}
+
+t_settings_managed_asks_chezmoi() {
+  HOME=/h
+  chezmoi() { echo "chezmoi $*" >>"$LOG"; return 0; }
+  _settings_managed || return 1
+  [[ "$(cat "$LOG")" == "chezmoi source-path /h/.claude/settings.json" ]] || return 1
+  chezmoi() { return 1; }
+  ! _settings_managed
+}
+
+t_keep_settings_managed() {
+  settings_home '{"a":1}'
+  _settings_managed() { return 0; }
+  writer() { echo '{"b":2}' >"$HOME/.claude/settings.json"; return 3; }
+  local rc=0
+  _keep_settings writer >/dev/null || rc=$?
+  [[ $rc -eq 3 && "$(cat "$HOME/.claude/settings.json")" == '{"a":1}' ]]
+}
+
+t_keep_settings_unmanaged() {
+  settings_home '{"a":1}'
+  _settings_managed() { return 1; }
+  writer() { echo '{"b":2}' >"$HOME/.claude/settings.json"; }
+  _keep_settings writer && [[ "$(cat "$HOME/.claude/settings.json")" == '{"b":2}' ]]
+}
+
+t_warn_if_off() {
+  settings_home '{"enabledPlugins":{"a@m":true,"c@m":false}}'
+  _settings_managed() { return 0; }
+  [[ -z "$(_warn_if_off a@m 2>&1)" ]] || return 1
+  [[ "$(_warn_if_off b@m 2>&1)" == *'"b@m": true'* ]] || return 1
+  [[ "$(_warn_if_off c@m 2>&1)" == *'"c@m": true'* ]] || return 1
+  _settings_managed() { return 1; }
+  [[ -z "$(_warn_if_off b@m 2>&1)" ]]
+}
+
+t_install_plugin_keeps_settings() {
+  settings_home '{"enabledPlugins":{}}'
+  _settings_managed() { return 0; }
+  _plugin_installed() { return 1; }
+  _marketplace_exists() { return 1; }
+  claude() {
+    echo "claude $*" >>"$LOG"
+    echo '{"enabledPlugins":{"p@m":true}}' >"$HOME/.claude/settings.json"
+  }
+  local out
+  out="$(_install_plugin p@m org/repo m 2>&1)" || return 1
+  [[ "$(cat "$HOME/.claude/settings.json")" == '{"enabledPlugins":{}}' ]] \
+    && [[ "$(cat "$LOG")" == "claude plugin marketplace add org/repo
+claude plugin install p@m" ]] \
+    && [[ "$out" == *'is installed but off'* ]]
+}
+
 check lib_sources_strict t_lib_sources_strict
 check tool_install_failure t_tool_install_failure
 check plugin_install_failure t_plugin_install_failure
@@ -231,6 +290,11 @@ check plugin_scope t_plugin_scope
 check jq_preflight t_jq_preflight
 check marketplace_update_per_id t_marketplace_update_per_id
 check skill_bundle t_skill_bundle
+check settings_managed_asks_chezmoi t_settings_managed_asks_chezmoi
+check keep_settings_managed t_keep_settings_managed
+check keep_settings_unmanaged t_keep_settings_unmanaged
+check warn_if_off t_warn_if_off
+check install_plugin_keeps_settings t_install_plugin_keeps_settings
 
 rm -f "$LOG"
 exit $((fails > 0))

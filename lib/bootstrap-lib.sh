@@ -64,6 +64,49 @@ _marketplace_exists() {
   [[ -f "$f" ]] && jq -e --arg id "$id" 'has($id)' "$f" >/dev/null 2>&1
 }
 
+# ── settings.json owned by chezmoi ────────────────────────────────────────────
+# Where chezmoi manages ~/.claude/settings.json, chezmoi decides which plugins
+# are on (enabledPlugins). The bootstrap only downloads plugins and registers
+# marketplaces. `claude plugin install` and `marketplace add` still write
+# settings.json, so _keep_settings puts the file back as it was. Where chezmoi
+# does not manage the file (for example a Mac that skips ~/.claude), the claude
+# CLI turns plugins on as usual.
+_settings_file() { printf '%s/.claude/settings.json' "$HOME"; }
+
+_settings_managed() {
+  _cmd_exists chezmoi && chezmoi source-path "$(_settings_file)" >/dev/null 2>&1
+}
+
+# Runs "$@" and restores settings.json if chezmoi manages it. Keeps the exit code.
+_keep_settings() {
+  local f backup rc=0
+  f="$(_settings_file)"
+  if [[ ! -f "$f" ]] || ! _settings_managed; then
+    "$@"
+    return
+  fi
+  backup="$(mktemp)" || return 1
+  cp -p "$f" "$backup" || { rm -f "$backup"; return 1; }
+  "$@" || rc=$?
+  if ! cmp -s "$backup" "$f"; then
+    cp -p "$backup" "$f" && log "settings.json restored: chezmoi decides which plugins are on"
+  fi
+  rm -f "$backup"
+  return "$rc"
+}
+
+_plugin_enabled() {
+  jq -e --arg k "$1" '.enabledPlugins[$k] == true' "$(_settings_file)" >/dev/null 2>&1
+}
+
+# Warns when chezmoi manages settings.json and does not turn the plugin on.
+_warn_if_off() {
+  local key="$1"
+  _settings_managed || return 0
+  _plugin_enabled "$key" && return 0
+  warn "${key%%@*} is installed but off: add \"${key}\": true to enabledPlugins in the chezmoi source of ~/.claude/settings.json, then run chezmoi apply"
+}
+
 # check-skill-name is the name of one skill from the package (used as installed proxy).
 # `npx skills ls` is slow (npm resolves the package on every run), so list once and
 # reuse it; _install_skill clears the cache. </dev/null: if npx still asks anything,
@@ -176,15 +219,19 @@ _install_plugin() {
   local key="$1" mkt_src="$2" mkt_id="${3:-}"
   _need_plugin_tools || return 1
   if _plugin_installed "$key"; then
-    ok "${key%%@*} already installed — skipping"; return 0
+    ok "${key%%@*} already installed — skipping"
+    _warn_if_off "$key"
+    return 0
   fi
   if [[ -n "$mkt_id" ]] && ! _marketplace_exists "$mkt_id"; then
     log "Registering marketplace $mkt_id..."
-    claude plugin marketplace add "$mkt_src" || warn "marketplace add failed (may already exist)"
+    _keep_settings claude plugin marketplace add "$mkt_src" \
+      || warn "marketplace add failed (may already exist)"
   fi
   log "Installing ${key%%@*}..."
-  claude plugin install "$key" || return 1
+  _keep_settings claude plugin install "$key" || return 1
   ok "${key%%@*} installed"
+  _warn_if_off "$key"
 }
 
 # ── plugin updates (claude CLI uses its own update path, not `npx skills`) ────
@@ -196,7 +243,7 @@ _update_plugin() {
   local before after
   before="$(_plugin_version "$key")"
   log "Updating ${key%%@*} (${before})..."
-  claude plugin update "$key" || return 1
+  _keep_settings claude plugin update "$key" || return 1
   after="$(_plugin_version "$key")"
   if [[ "$before" == "$after" ]]; then
     ok "${key%%@*} already up to date (${after})"
@@ -208,14 +255,17 @@ _update_plugin() {
 # Lists every plugin defined in COMPONENTS with its installed version.
 bootstrap_list_plugin_versions() {
   _need_plugin_tools || return 1
-  local comp
+  local comp managed=no
+  _settings_managed && managed=yes
   for comp in "${COMPONENTS[@]}"; do
     [[ "${comp%%|*}" == "plugin" ]] || continue
     local rest="${comp#*|}"
     local label key mkt_src mkt_id
     IFS='|' read -r label key mkt_src mkt_id <<< "$rest"
     if _plugin_installed "$key"; then
-      printf '%-40s %s\n' "$label" "$(_plugin_version "$key")"
+      local off=""
+      [[ "$managed" == yes ]] && ! _plugin_enabled "$key" && off=" (off: not in chezmoi enabledPlugins)"
+      printf '%-40s %s%s\n' "$label" "$(_plugin_version "$key")" "$off"
     else
       printf '%-40s %s\n' "$label" "not installed"
     fi
@@ -243,7 +293,7 @@ bootstrap_update_plugins() {
   local id
   for id in "${mkt_ids[@]+"${mkt_ids[@]}"}"; do
     log "Updating marketplace ${id}..."
-    claude plugin marketplace update "$id" || warn "marketplace ${id} update failed"
+    _keep_settings claude plugin marketplace update "$id" || warn "marketplace ${id} update failed"
   done
 
   local -a results=()
