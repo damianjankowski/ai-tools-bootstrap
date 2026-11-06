@@ -169,6 +169,33 @@ _install_openspec() {
   ok "openspec installed"
 }
 
+# GSD Core has no brew formula. Its installer (npx) writes into the agent's config dir;
+# Claude Code uses the native plugin instead (see bootstrap-claude).
+_GSD_PKG="@opengsd/gsd-core@latest"
+
+_gsd_codex_installed() { compgen -G "$HOME/.codex/skills/gsd-*" >/dev/null; }
+_gsd_opencode_installed() {
+  [[ -f "$HOME/.config/opencode/plugins/gsd-core.js" || -f "$HOME/.opencode/plugins/gsd-core.js" ]]
+}
+
+_install_gsd_core() {
+  local runtime="$1"
+  _need npx "install Node.js first: https://nodejs.org" || return 1
+  log "Installing GSD Core for ${runtime}..."
+  npx --yes "$_GSD_PKG" "--${runtime}" --global </dev/null || return 1
+  ok "GSD Core installed for ${runtime}"
+}
+
+_install_gsd_core_codex() {
+  if _gsd_codex_installed; then ok "GSD Core already present — skipping"; return 0; fi
+  _install_gsd_core codex
+}
+
+_install_gsd_core_opencode() {
+  if _gsd_opencode_installed; then ok "GSD Core already present — skipping"; return 0; fi
+  _install_gsd_core opencode
+}
+
 _install_codebase_memory_mcp() {
   if _cbm_installed; then ok "codebase-memory-mcp already present — skipping"; return 0; fi
   log "Installing codebase-memory-mcp..."

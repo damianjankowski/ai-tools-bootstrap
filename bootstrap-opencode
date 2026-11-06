@@ -15,6 +15,7 @@ COMPONENTS=(
   "tool|beads|_beads_installed|_install_beads"
   "tool|openspec|_openspec_installed|_install_openspec"
   "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
+  "tool|GSD Core|_gsd_opencode_installed|_install_gsd_core_opencode"
   "header|── Agent Skills (universal) ───────────────────────"
   "skill|dynatrace skills|dynatrace/dynatrace-for-ai|dt-app-dashboards"
   "skill|hashicorp / terraform skills|hashicorp/agent-skills|terraform-style-guide"
