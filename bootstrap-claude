@@ -2,6 +2,7 @@
 set -euo pipefail
 
 _BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# shellcheck source=lib/bootstrap-lib.sh
 source "${_BOOTSTRAP_DIR}/lib/bootstrap-lib.sh"
 
 # ── components ────────────────────────────────────────────────────────────────
@@ -43,13 +44,16 @@ _claude_installed()        { _cmd_exists claude; }
 _install_claude_code() {
   if _claude_installed; then ok "Claude Code CLI already present — skipping"; return 0; fi
   log "Installing Claude Code CLI..."
-  _npm_install @anthropic-ai/claude-code
+  _brew_install --cask claude-code || return 1
   ok "Claude Code CLI installed"
 }
 
 # ── run ───────────────────────────────────────────────────────────────────────
+BOOTSTRAP_EXTRA_USAGE="  --update         update installed plugins (and their marketplaces)
+  --list-versions  show installed plugin versions"
+
 case "${1:-}" in
   --update) bootstrap_update_plugins ;;
   --list-versions) bootstrap_list_plugin_versions ;;
-  *) bootstrap_run ;;
+  *) bootstrap_main "$@" ;;
 esac

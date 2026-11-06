@@ -4,12 +4,13 @@
         install-beads install-codebase-memory-mcp \
         cbm-ui cbm-auto-index cbm-update \
         init-beads setup-claude setup-codex setup-list \
-        bd-prime bd-ready bd-backup
+        bd-prime bd-ready bd-backup _bd-check \
+        lint test
 
 # ── help ──────────────────────────────────────────────────────────────────────
 help:
 	@echo ""
-	@echo "Claude Code bootstrap"
+	@echo "AI tools bootstrap"
 	@echo "─────────────────────────────────────────────"
 	@echo "  bootstrap                  Claude Code — interactive install (dialog TUI)"
 	@echo "  bootstrap-codex            Codex — interactive install (dialog TUI)"
@@ -20,7 +21,7 @@ help:
 	@echo ""
 	@echo "Install"
 	@echo "  install-beads              Install beads"
-	@echo "  install-codebase-memory-mcp  Install beads + codebase-memory-mcp (--ui)"
+	@echo "  install-codebase-memory-mcp  Install codebase-memory-mcp"
 	@echo ""
 	@echo "codebase-memory-mcp"
 	@echo "  cbm-ui                     Start Graph Visualization UI (port 9749)"
@@ -36,6 +37,13 @@ help:
 	@echo "  bd-ready                   bd ready — list tasks with no open blockers"
 	@echo "  bd-backup                  bd backup sync"
 	@echo ""
+	@echo "Development"
+	@echo "  lint                       bash -n + shellcheck on all scripts"
+	@echo "  test                       Run lib unit tests (stubbed, installs nothing)"
+	@echo ""
+
+# Runs one lib function: $(LIB) <function> [args]
+LIB = bash -euo pipefail -c 'source lib/bootstrap-lib.sh && "$$@"' _
 
 # ── bootstrap ─────────────────────────────────────────────────────────────────
 bootstrap:
@@ -48,7 +56,7 @@ bootstrap-opencode:
 	@bash ./bootstrap-opencode
 
 skills-update:
-	@npx skills update -g -y
+	@$(LIB) _skills update -g -y
 
 plugins-update:
 	@bash ./bootstrap-claude --update
@@ -58,15 +66,15 @@ plugins-list:
 
 # ── install ───────────────────────────────────────────────────────────────────
 install-beads:
-	@bash ./install-tools.sh
+	@$(LIB) _install_beads
 
 install-codebase-memory-mcp:
-	@bash ./install-tools.sh --with-mcp
+	@$(LIB) _install_codebase_memory_mcp
 
 # ── codebase-memory-mcp ───────────────────────────────────────────────────────
 cbm-ui:
 	@command -v codebase-memory-mcp >/dev/null || { echo "codebase-memory-mcp not installed. Run: make install-codebase-memory-mcp"; exit 1; }
-	codebase-memory-mcp --ui=true --port=9749
+	@codebase-memory-mcp --ui=true --port=9749
 
 cbm-auto-index:
 	@command -v codebase-memory-mcp >/dev/null || { echo "codebase-memory-mcp not installed. Run: make install-codebase-memory-mcp"; exit 1; }
@@ -107,3 +115,13 @@ bd-ready: _bd-check
 
 bd-backup: _bd-check
 	@bd backup sync
+
+# ── development ───────────────────────────────────────────────────────────────
+SCRIPTS = bootstrap-claude bootstrap-codex bootstrap-opencode lib/bootstrap-lib.sh tests/lib-test.sh
+
+lint:
+	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
+	@shellcheck -x $(SCRIPTS)
+
+test:
+	@bash tests/lib-test.sh
