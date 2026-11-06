@@ -152,6 +152,7 @@ MATTPOCOCK_SKILLS="handoff"
 
 # ── shared tool checks + installs (common across all bootstrap-* scripts) ─────
 _beads_installed() { _cmd_exists bd; }
+_openspec_installed() { _cmd_exists openspec; }
 _cbm_installed()   { _cmd_exists codebase-memory-mcp; }
 
 _install_beads() {
@@ -159,6 +160,13 @@ _install_beads() {
   log "Installing beads..."
   _brew_install beads || return 1
   ok "beads installed"
+}
+
+_install_openspec() {
+  if _openspec_installed; then ok "openspec already present — skipping"; return 0; fi
+  log "Installing openspec..."
+  _brew_install openspec || return 1
+  ok "openspec installed"
 }
 
 _install_codebase_memory_mcp() {

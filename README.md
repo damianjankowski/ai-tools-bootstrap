@@ -34,7 +34,7 @@ Without a terminal (for example in CI), the scripts stop unless you pass `--yes`
 
 ## What it changes
 
-- Tools are installed with Homebrew (Claude Code, Codex and OpenCode CLIs, beads).
+- Tools are installed with Homebrew (Claude Code, Codex and OpenCode CLIs, beads, openspec).
 - Claude Code plugins and their marketplaces go to `~/.claude/plugins`, in user scope.
 - Agent Skills are installed globally with `npx skills add -g`.
 - codebase-memory-mcp goes to `~/.local/bin`. Its installer also registers the MCP server in the

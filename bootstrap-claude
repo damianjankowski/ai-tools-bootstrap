@@ -10,6 +10,7 @@ COMPONENTS=(
   "header|── Tools ──────────────────────────────────────────"
   "tool|Claude Code CLI|_claude_installed|_install_claude_code"
   "tool|beads|_beads_installed|_install_beads"
+  "tool|openspec|_openspec_installed|_install_openspec"
   "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
   "header|── Plugins / Skills ───────────────────────────────"
   "plugin|andrej-karpathy-skills|andrej-karpathy-skills@karpathy-skills|forrestchang/andrej-karpathy-skills|karpathy-skills"

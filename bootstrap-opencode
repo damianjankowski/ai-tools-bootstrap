@@ -13,6 +13,7 @@ COMPONENTS=(
   "header|── Tools ──────────────────────────────────────────"
   "tool|OpenCode|_opencode_installed|_install_opencode"
   "tool|beads|_beads_installed|_install_beads"
+  "tool|openspec|_openspec_installed|_install_openspec"
   "tool|codebase-memory-mcp|_cbm_installed|_install_codebase_memory_mcp"
   "header|── Agent Skills (universal) ───────────────────────"
   "skill|dynatrace skills|dynatrace/dynatrace-for-ai|dt-app-dashboards"
