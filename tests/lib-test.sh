@@ -45,7 +45,10 @@ not_installed() {
   _codex_installed()    { return 1; }
   _opencode_installed() { return 1; }
   _beads_installed()    { return 1; }
+  _openspec_installed() { return 1; }
   _cbm_installed()      { return 1; }
+  _gsd_codex_installed()    { return 1; }
+  _gsd_opencode_installed() { return 1; }
 }
 
 # ── tests ─────────────────────────────────────────────────────────────────────
@@ -57,8 +60,9 @@ t_tool_install_failure() {
   load_installers; not_installed
   brew() { echo "brew $*" >>"$LOG"; return 1; }
   curl() { return 1; }
+  npx() { return 1; }
   local fn
-  for fn in _install_beads _install_codebase_memory_mcp \
+  for fn in _install_gsd_core_codex _install_gsd_core_opencode _install_beads _install_openspec _install_codebase_memory_mcp \
             _install_claude_code _install_codex _install_opencode; do
     if "$fn"; then echo "  $fn reported success" >&2; return 1; fi
   done
@@ -74,11 +78,20 @@ t_plugin_install_failure() {
 t_brew_args() {
   load_installers; not_installed
   brew() { echo "brew $*" >>"$LOG"; }
-  _install_claude_code && _install_codex && _install_opencode && _install_beads || return 1
+  _install_claude_code && _install_codex && _install_opencode && _install_beads && _install_openspec || return 1
   [[ "$(cat "$LOG")" == "brew install --cask claude-code
 brew install --cask codex
 brew install opencode
-brew install beads" ]]
+brew install beads
+brew install openspec" ]]
+}
+
+t_gsd_core_args() {
+  load_installers; not_installed
+  npx() { echo "npx $*" >>"$LOG"; }
+  _install_gsd_core_codex && _install_gsd_core_opencode || return 1
+  [[ "$(cat "$LOG")" == "npx --yes @opengsd/gsd-core@latest --codex --global
+npx --yes @opengsd/gsd-core@latest --opencode --global" ]]
 }
 
 t_installed_tool_skips_brew() {

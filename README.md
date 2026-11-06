@@ -34,7 +34,8 @@ Without a terminal (for example in CI), the scripts stop unless you pass `--yes`
 
 ## What it changes
 
-- Tools are installed with Homebrew (Claude Code, Codex and OpenCode CLIs, beads).
+- Tools are installed with Homebrew (Claude Code, Codex and OpenCode CLIs, beads, openspec).
+- GSD Core installs as a Claude Code plugin; for Codex and OpenCode it runs `npx @opengsd/gsd-core@latest --<runtime> --global`, which writes to `~/.codex` or `~/.config/opencode`.
 - Claude Code plugins and their marketplaces go to `~/.claude/plugins`, in user scope.
 - Agent Skills are installed globally with `npx skills add -g`.
 - codebase-memory-mcp goes to `~/.local/bin`. Its installer also registers the MCP server in the

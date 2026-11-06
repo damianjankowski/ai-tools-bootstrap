@@ -1,7 +1,7 @@
 .PHONY: help \
         bootstrap bootstrap-codex bootstrap-opencode \
         skills-update plugins-update plugins-list \
-        install-beads install-codebase-memory-mcp \
+        install-beads install-openspec install-codebase-memory-mcp \
         cbm-ui cbm-auto-index cbm-update \
         init-beads setup-claude setup-codex setup-list \
         bd-prime bd-ready bd-backup _bd-check \
@@ -21,6 +21,7 @@ help:
 	@echo ""
 	@echo "Install"
 	@echo "  install-beads              Install beads"
+	@echo "  install-openspec           Install openspec"
 	@echo "  install-codebase-memory-mcp  Install codebase-memory-mcp"
 	@echo ""
 	@echo "codebase-memory-mcp"
@@ -67,6 +68,9 @@ plugins-list:
 # ── install ───────────────────────────────────────────────────────────────────
 install-beads:
 	@$(LIB) _install_beads
+
+install-openspec:
+	@$(LIB) _install_openspec
 
 install-codebase-memory-mcp:
 	@$(LIB) _install_codebase_memory_mcp
